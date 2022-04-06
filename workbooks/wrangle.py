@@ -214,8 +214,17 @@ def prep_zillow(df):
     
     # The last nulls can be dropped altogether. 
     df = df.dropna()
- 
-
+    
+    # the city code is supposed to have five digits. Converted to integer to do an accurate length count as a subsequent string. 
+    df.regionidcity = df.regionidcity.astype(int)
+    df = df[df.regionidcity.astype(str).apply(len) == 5]
+    
+    # the same applies to the zip code. 
+    
+    df.regionidzip = df.regionidzip.astype(int)
+    df = df[df.regionidzip.astype(str).apply(len) == 5]
+    
+    
     df['yearbuilt'] = df['yearbuilt'].astype(int)
     df.yearbuilt = df.yearbuilt.astype(object) 
     df['age'] = 2017-df['yearbuilt']
