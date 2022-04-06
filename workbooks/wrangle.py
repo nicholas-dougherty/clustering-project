@@ -8,7 +8,7 @@ from datetime import date
 
 
 def wrangle_zillow():
-    
+    # currently cannot stratify by logerror
     df = prep_zillow(acquire_zillow_data())
     
     # train/validate/test split
@@ -162,11 +162,7 @@ def prep_zillow(df):
     
     # Minimum lot size of single family units.
     df = df[df.lotsizesquarefeet >= 5000].copy()
-    
-    
-    
-    #df = df[~df['propertylandusetypeid'].isin([263, 265, 275])]
-    
+
     # Clear indicators of single unit family. Other codes non-existent or indicate commercial sites. 
    # 0100 - Single Residence
    # 0101 Single residence with pool
@@ -208,12 +204,17 @@ def prep_zillow(df):
     df =df.drop(columns= ['finishedsquarefeet12', 'fullbathcnt', 'calculatedbathnbr',
                       'propertyzoningdesc', 'unitcnt', 'propertylandusedesc',
                       'assessmentyear', 'roomcnt', 'regionidcounty', 'propertylandusetypeid',
-                      'heatingorsystemtypeid', 'id', 'heatingorsystemdesc', 'buildingqualitytypeid'],
+                      'heatingorsystemtypeid', 'id', 'heatingorsystemdesc', 'buildingqualitytypeid',
+                         'rawcensustractandblock'],
             axis=1)
     
     
     # The last nulls can be dropped altogether. 
     df = df.dropna()
+    
+    # initial outlier removal. Less harsh K, mainly to keep 1 bathroom included.
+    df = remove_outliers(df, 3, ['lotsizesquarefeet', 'structuretaxvaluedollarcnt', 'taxvaluedollarcnt',
+                                'landtaxvaluedollarcnt', 'taxamount', 'calculatedfinishedsquarefeet', 'bedroomcnt', 'bathroomcnt', 'censustractandblock'])
     
     # the city code is supposed to have five digits. Converted to integer to do an accurate length count as a subsequent string. 
     df.regionidcity = df.regionidcity.astype(int)
@@ -224,6 +225,9 @@ def prep_zillow(df):
     df.regionidzip = df.regionidzip.astype(int)
     df = df[df.regionidzip.astype(str).apply(len) == 5]
     
+
+    # A row where the censustractandblock was out of range. Wasn't close to the raw, unlike the others, and started with 483 instead of 60, 61. Too large. 
+    #df = df.drop(labels=12414696, axis=0)
     
     df['yearbuilt'] = df['yearbuilt'].astype(int)
     df.yearbuilt = df.yearbuilt.astype(object) 
@@ -231,11 +235,35 @@ def prep_zillow(df):
     df = df.drop(columns='yearbuilt')
     df['age'] = df['age'].astype('int')
     print('Yearbuilt converted to age. \n')
+                          
+    df['county'] = df.fips.apply(lambda fips: '0' + str(int(fips)))
+    df['county'].replace({'06037': 'los_angeles', '06059': 'orange', '06111': 'ventura'}, inplace=True) 
+    df.drop(['fips'], axis=1, inplace=True)
     
-    # Removing problematic outlier groups.  
-    df = remove_outliers(df, 3, ['lotsizesquarefeet', 'structuretaxvaluedollarcnt', 'taxvaluedollarcnt',
-                                'landtaxvaluedollarcnt', 'taxamount', 'calculatedfinishedsquarefeet'])
+    # Feature Engineering
+     # create taxrate variable
+    df['taxrate'] = round(df.taxamount/df.taxvaluedollarcnt*100, 2)
+    # dollar per square foot- structure
+    df['structure_cost_per_sqft'] = df.structuretaxvaluedollarcnt/df.calculatedfinishedsquarefeet
+    # dollar per square foot- land
+    df['land_cost_per_sqft'] = df.landtaxvaluedollarcnt/df.lotsizesquarefeet
     
+    # Removing problematic outlier groups. K is at 1.5 since K-Means clustering is very sensitive to outliers 
+    df = remove_outliers(df, 1.5, ['age', 'structure_cost_per_sqft', 'taxrate',
+                                'land_cost_per_sqft'])
+    
+    # there are less than 1% of values in both these fields, and neither are likely to hold value. Plus, a 
+    # one bedroom for a family is unthinkable. I was tempted to remove five, since there are so many 5 
+    # bedroom one bath arrangements, but I can't be too picky. 
+    df = df[~df['bedroomcnt'].isin([6, 1])]
+    
+    # lastly, even after removing outliers from those columns, a few tax rates under 
+    # 1% are present. This is unacceptable, as the Maximum Levy (in other words the 
+    # bare minimum, too) is 1%. Additional fees can be added, but there's no getting 
+    # under 1%. thus, rows falling beneath this must go. 
+    df = df[df.taxrate >= 1.0]
+    
+    #finally set the index
     df = df.set_index('parcelid')
     
     return df
