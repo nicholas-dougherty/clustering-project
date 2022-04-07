@@ -44,3 +44,28 @@
 # df('expenses' ].plot (kind = 'hist')
 # plt.figure(2)
 # df('log expenses' ].plot (kind = 'hist')
+
+###########
+### Tried adding a box on top of a viz. 
+#plt.figure(figsize=(16,8))
+#sns.scatterplot(x='taxrate', y='log_abs', data=train, alpha=.4)
+#plt.xlabel('Log Error |Abs Value|')
+#plt.ylabel('Tax Rate')
+#plt.title('Tax Rate Occasionally Factored into Outrageous Log Errors.')
+#
+### Creating the details to include in a box
+##mu = train['log_abs'].mean()
+##median = np.median(train['log_abs'])
+##sigma = train['log_abs'].std()
+##textstr = '\n'.join((
+##    r'$\mu=%.2f$' % (mu, ),
+##    r'$\mathrm{median}=%.2f$' % (median, ),
+##    r'$\sigma=%.2f$' % (sigma, )))
+##
+### these are matplotlib.patch.Patch properties
+##props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+##
+### place a text box in upper left in axes coords
+##ax.text(0.75, 0.9, textstr, transform=ax.transAxes, fontsize=10,
+##        verticalalignment='top', bbox=props)
+#plt.show()
