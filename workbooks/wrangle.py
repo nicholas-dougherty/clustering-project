@@ -141,6 +141,28 @@ def remove_outliers(df, k, col_list):
         
     return df
 
+def moveDecimalPoint(series, decimal_places):
+    '''
+    Move the decimal place in a given number.
+
+    args:
+        num (int)(float) = The number in which you are modifying.
+        decimal_places (int) = The number of decimal places to move.
+    
+    returns:
+        (float)
+    
+    ex. moveDecimalPoint(11.05, -2) returns: 0.1105
+    '''
+    for _ in range(abs(decimal_places)):
+
+        if decimal_places>0:
+            series *= 10; #shifts decimal place right for each row
+        else:
+            series /= 10.; #shifts decimal place left for each row 
+
+    return series
+
 
 def prep_zillow(df):
     
