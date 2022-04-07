@@ -20,3 +20,9 @@ https://towardsdatascience.com/in-defense-of-zillows-besieged-data-scientists-e4
  
  The Bottom Line
 Zillow isn’t trying to hide the imperfections of its Zestimates from consumers, and you can’t expect perfectly accurate estimates from competing sites, either. The point is for homeowners to use prices from Zestimates as a broad guideline, and contrast these figures against other sources. It should not, in any way, be considered an appraisal. A comparable market analysis from a local real estate agent and a professional appraisal of the home are the best ways to learn its value.
+
+
+CHECKOUT LEAFMAP IF I GET THE TIME 
+https://leafmap.org/notebooks/00_key_features/
+
+"Although it represents location, like zipcode, in this circumstance a higher longitudinal or latitudinal value does represent a farther distance." Treat it as continuous. If it was extremely vague like just 38 N 118 W then it could MAYBE be categorical, and definitely discrete. 

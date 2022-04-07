@@ -249,7 +249,7 @@ def prep_zillow(df):
     
 
     # A row where the censustractandblock was out of range. Wasn't close to the raw, unlike the others, and started with 483 instead of 60, 61. Too large. 
-    #df = df.drop(labels=12414696, axis=0)
+    df = df.drop(labels=12414696, axis=0)
     
     df['yearbuilt'] = df['yearbuilt'].astype(int)
     df.yearbuilt = df.yearbuilt.astype(object) 
@@ -287,14 +287,29 @@ def prep_zillow(df):
     # bedroom one bath arrangements, but I can't be too picky. 
     df = df[~df['bedroomcnt'].isin([6, 1])]
     
+    
+    
     # lastly, even after removing outliers from those columns, a few tax rates under 
     # 1% are present. This is unacceptable, as the Maximum Levy (in other words the 
     # bare minimum, too) is 1%. Additional fees can be added, but there's no getting 
     # under 1%. thus, rows falling beneath this must go. 
     df = df[df.taxrate >= 1.0]
     
+    # move decimal points so lat
+    # and long are correct. 
+    
+    lats = df['latitude']
+    longs = df['longitude']
+    
+    round(moveDecimalPoint(lats, -6), 6)
+    round(moveDecimalPoint(longs, -6), 6)
+    
+    
     #finally set the index
     df = df.set_index('parcelid')
+    
+        # A row where the censustractandblock was out of range. Wasn't close to the raw, unlike the others, and started with 483 instead of 60, 61. Too large. 
+    df = df.drop(labels=12414696, axis=0)
     
     return df
 
