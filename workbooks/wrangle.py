@@ -247,9 +247,6 @@ def prep_zillow(df):
     df.regionidzip = df.regionidzip.astype(int)
     df = df[df.regionidzip.astype(str).apply(len) == 5]
     
-
-    # A row where the censustractandblock was out of range. Wasn't close to the raw, unlike the others, and started with 483 instead of 60, 61. Too large. 
-    df = df.drop(labels=12414696, axis=0)
     
     df['yearbuilt'] = df['yearbuilt'].astype(int)
     df.yearbuilt = df.yearbuilt.astype(object) 
@@ -282,13 +279,6 @@ def prep_zillow(df):
     # actual dates can be retrieved from parcelid for those interested
     df = df.drop(columns='transactiondate')
     
-    # there are less than 1% of values in both these fields, and neither are likely to hold value. Plus, a 
-    # one bedroom for a family is unthinkable. I was tempted to remove five, since there are so many 5 
-    # bedroom one bath arrangements, but I can't be too picky. 
-    df = df[~df['bedroomcnt'].isin([6, 1])]
-    
-    
-    
     # lastly, even after removing outliers from those columns, a few tax rates under 
     # 1% are present. This is unacceptable, as the Maximum Levy (in other words the 
     # bare minimum, too) is 1%. Additional fees can be added, but there's no getting 
@@ -309,7 +299,7 @@ def prep_zillow(df):
     df = df.set_index('parcelid')
     
         # A row where the censustractandblock was out of range. Wasn't close to the raw, unlike the others, and started with 483 instead of 60, 61. Too large. 
-    df = df.drop(labels=12414696, axis=0)
+    #df = df.drop(labels=12414696, axis=0)
     
     return df
 

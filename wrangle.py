@@ -6,9 +6,13 @@ from collections import Counter
 from sklearn.model_selection import train_test_split
 from datetime import date
 
+def get_exploration_data():
+    train, validate, test = wrangle_zillow()
+    return train
+
 
 def wrangle_zillow():
-    
+    # currently cannot stratify by logerror
     df = prep_zillow(acquire_zillow_data())
     
     # train/validate/test split
@@ -141,6 +145,28 @@ def remove_outliers(df, k, col_list):
         
     return df
 
+def moveDecimalPoint(series, decimal_places):
+    '''
+    Move the decimal place in a given number.
+
+    args:
+        num (int)(float) = The number in which you are modifying.
+        decimal_places (int) = The number of decimal places to move.
+    
+    returns:
+        (float)
+    
+    ex. moveDecimalPoint(11.05, -2) returns: 0.1105
+    '''
+    for _ in range(abs(decimal_places)):
+
+        if decimal_places>0:
+            series *= 10; #shifts decimal place right for each row
+        else:
+            series /= 10.; #shifts decimal place left for each row 
+
+    return series
+
 
 def prep_zillow(df):
     
@@ -162,11 +188,7 @@ def prep_zillow(df):
     
     # Minimum lot size of single family units.
     df = df[df.lotsizesquarefeet >= 5000].copy()
-    
-    
-    
-    #df = df[~df['propertylandusetypeid'].isin([263, 265, 275])]
-    
+
     # Clear indicators of single unit family. Other codes non-existent or indicate commercial sites. 
    # 0100 - Single Residence
    # 0101 Single residence with pool
@@ -208,13 +230,23 @@ def prep_zillow(df):
     df =df.drop(columns= ['finishedsquarefeet12', 'fullbathcnt', 'calculatedbathnbr',
                       'propertyzoningdesc', 'unitcnt', 'propertylandusedesc',
                       'assessmentyear', 'roomcnt', 'regionidcounty', 'propertylandusetypeid',
-                      'heatingorsystemtypeid', 'id', 'heatingorsystemdesc', 'buildingqualitytypeid'],
+                      'heatingorsystemtypeid', 'id', 'heatingorsystemdesc', 'buildingqualitytypeid',
+                         'rawcensustractandblock'],
             axis=1)
     
     
     # The last nulls can be dropped altogether. 
     df = df.dropna()
- 
+    
+    # the city code is supposed to have five digits. Converted to integer to do an accurate length count as a subsequent string. 
+    df.regionidcity = df.regionidcity.astype(int)
+    df = df[df.regionidcity.astype(str).apply(len) == 5]
+    
+    # the same applies to the zip code. 
+    
+    df.regionidzip = df.regionidzip.astype(int)
+    df = df[df.regionidzip.astype(str).apply(len) == 5]
+    
 
     df['yearbuilt'] = df['yearbuilt'].astype(int)
     df.yearbuilt = df.yearbuilt.astype(object) 
@@ -222,12 +254,52 @@ def prep_zillow(df):
     df = df.drop(columns='yearbuilt')
     df['age'] = df['age'].astype('int')
     print('Yearbuilt converted to age. \n')
+                          
+    df['county'] = df.fips.apply(lambda fips: '0' + str(int(fips)))
+    df['county'].replace({'06037': 'los_angeles', '06059': 'orange', '06111': 'ventura'}, inplace=True)
     
-    # Removing problematic outlier groups.  
+    # Feature Engineering
+     # create taxrate variable
+    df['taxrate'] = round(df.taxamount/df.taxvaluedollarcnt*100, 2)
+    # dollar per square foot- structure
+    df['structure_cost_per_sqft'] = df.structuretaxvaluedollarcnt/df.calculatedfinishedsquarefeet
+    # dollar per square foot- land
+    df['land_cost_per_sqft'] = df.landtaxvaluedollarcnt/df.lotsizesquarefeet
+    
     df = remove_outliers(df, 3, ['lotsizesquarefeet', 'structuretaxvaluedollarcnt', 'taxvaluedollarcnt',
-                                'landtaxvaluedollarcnt', 'taxamount', 'calculatedfinishedsquarefeet'])
+                                'landtaxvaluedollarcnt', 'taxamount', 'calculatedfinishedsquarefeet', 'structure_cost_per_sqft',
+                                'taxrate', 'land_cost_per_sqft', 'bedroomcnt', 'bathroomcnt'])
     
+    # create quarters based on transaction date
+    # first convert from string to datetime format
+    df['transactiondate'] = pd.to_datetime(df['transactiondate'], infer_datetime_format=True, errors='coerce')
+    # then use pandas feature dt.
+    df['fiscal_quarter'] = df['transactiondate'].dt.quarter
+    # drop transaction date, since it can't be represented in a histogram 
+    # actual dates can be retrieved from parcelid for those interested
+    df = df.drop(columns='transactiondate')
+    
+    # lastly, even after removing outliers from those columns, a few tax rates under 
+    # 1% are present. This is unacceptable, as the Maximum Levy (in other words the 
+    # bare minimum, too) is 1%. Additional fees can be added, but there's no getting 
+    # under 1%. thus, rows falling beneath this must go. 
+    df = df[df.taxrate >= 1.0]
+    
+    # move decimal points so lat
+    # and long are correct. 
+    
+    lats = df['latitude']
+    longs = df['longitude']
+    
+    round(moveDecimalPoint(lats, -6), 6)
+    round(moveDecimalPoint(longs, -6), 6)
+    
+    
+    #finally set the index
     df = df.set_index('parcelid')
+    
+        # A row where the censustractandblock was out of range. Wasn't close to the raw, unlike the others, and started with 483 instead of 60, 61. Too large. 
+    df = df.drop(labels=12414696, axis=0)
     
     return df
 
@@ -264,92 +336,3 @@ def scale_data(train, validate, test):
 #        return scale(train, validate, test)
 #    else:
 #        return train, validate, test
-
-
-
-
-def nulls_by_col(df):
-    '''
-    This function  takes in a dataframe of observations and attributes(or columns) and returns a dataframe where each row is an atttribute name, the first column is the 
-    number of rows with missing values for that attribute, and the second column is percent of total rows that have missing values for that attribute.
-    '''
-    num_missing = df.isnull().sum()
-    rows = df.shape[0]
-    prcnt_miss = (num_missing / rows * 100)
-    cols_missing = pd.DataFrame({'num_rows_missing': num_missing, 
-                                 'percent_rows_missing': prcnt_miss})\
-    .sort_values(by='percent_rows_missing', ascending=False)
-    return cols_missing.applymap(lambda x: f"{x:0.1f}")
-
-def nulls_by_row(df):
-    '''
-    This function takes in a dataframe and returns a dataframe with 3 columns: the number of columns missing, percent of columns missing, 
-    and number of rows with n columns missing.
-    '''
-    num_missing = df.isnull().sum(axis = 1)
-    prcnt_miss = (num_missing / df.shape[1] * 100)
-    rows_missing = pd.DataFrame({'num_cols_missing': num_missing, 
-                                 'percent_cols_missing': prcnt_miss})\
-    .reset_index()\
-    .groupby(['num_cols_missing', 'percent_cols_missing']).count()\
-    .rename(index=str, columns={'index': 'num_rows'}).reset_index().set_index('num_cols_missing')\
-    .sort_values(by='percent_cols_missing', ascending=False)
-    return rows_missing
-
-def describe_data(df):
-    '''
-    This function takes in a pandas dataframe and prints out the shape, datatypes, number of missing values, 
-    columns and their data types, summary statistics of numeric columns in the dataframe, as well as the value counts for categorical variables.
-    '''
-    # Print out the "shape" of our dataframe - rows and columns
-    print(f'This dataframe has {df.shape[0]} rows and {df.shape[1]} columns.')
-    print('')
-    print('--------------------------------------')
-    print('--------------------------------------')
-    
-    # print the datatypes and column names with non-null counts
-    print(df.info())
-    print('')
-    print('--------------------------------------')
-    print('--------------------------------------')
-    
-    
-    # print out summary stats for our dataset
-    print('Here are the summary statistics of our dataset')
-    print(df.describe().applymap(lambda x: f"{x:0.3f}"))
-    print('')
-    print('--------------------------------------')
-    print('--------------------------------------')
-
-    # print the number of missing values per column and the total
-    print('Null Values by Column: ')
-    missing_total = df.isnull().sum().sum()
-    missing_count = df.isnull().sum() # the count of missing values
-    value_count = df.isnull().count() # the count of all values
-    missing_percentage = round(missing_count / value_count * 100, 2) # percentage of missing values
-    missing_df = pd.DataFrame({'count': missing_count, 'percentage': missing_percentage})\
-    .sort_values(by='percentage', ascending=False)
-    
-    print(missing_df.head(50))
-    print(f' \n Total Number of Missing Values: {missing_total} \n')
-    df_total = df.shape[0] * df.shape[1]
-    proportion_of_nulls = round((missing_total / df_total), 4)
-    print(f' Proportion of Nulls in Dataframe: {proportion_of_nulls}\n') 
-    print('--------------------------------------')
-    print('--------------------------------------')
-    
-    print('Row-by-Row Nulls')
-    print(nulls_by_row(df))
-    print('----------------------')
-    
-    print('Relative Frequencies: \n')
-    ## Display top 5 values of each variable within reasonable limit
-    limit = 25
-    for col in df.columns:
-        if df[col].nunique() < limit:
-            print(f'Column: {col} \n {round(df[col].value_counts(normalize=True).nlargest(5), 3)} \n')
-        else: 
-            print(f'Column: {col} \n')
-            print(f'Range of Values: [{df[col].min()} - {df[col].max()}] \n')
-        print('------------------------------------------')
-        print('--------------------------------------')

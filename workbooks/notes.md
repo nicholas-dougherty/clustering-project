@@ -26,3 +26,24 @@ CHECKOUT LEAFMAP IF I GET THE TIME
 https://leafmap.org/notebooks/00_key_features/
 
 "Although it represents location, like zipcode, in this circumstance a higher longitudinal or latitudinal value does represent a farther distance." Treat it as continuous. If it was extremely vague like just 38 N 118 W then it could MAYBE be categorical, and definitely discrete. 
+
+
+https://vinvashishta.substack.com/p/zillow-just-gave-us-a-look-at-machine?s=r
+
+The CEO said repeatedly, there was a narrow window of accuracy that would create a sustainable business. Everything else would result in failure. This is the connection between model metrics and business metrics. Small inaccuracy ranges could cause cascading failure.
+
+  Too low on the initial home value estimations and homeowners would not accept the offer.
+
+·         Too high on the initial estimation, margins would not be optimized.
+
+·         Miss on the customer behavioral model, and homeowners would not accept the offers at a high enough rate.
+
+·         Too low on the 6 month home value prediction and opportunities would be missed.
+
+·         Too high on the 6 month estimate and margins would not be optimized or offers would be extended when they shouldn’t be.
+
+The simulations and tests Zillow ran were incomplete. The assumption of stability is baked into most statistical models. In real world complex systems involving people making decisions, stability is NEVER an assumption that will hold in the long run. As I said in a previous post about experiments, these types of models will pass early validation, even using statistical experimental methods, then fail suddenly and catastrophically.
+
+The problem is in the dynamics of real world data. The distribution changes. Training data’s distributions have distributions. The result is a probability of a starting distribution being part of serving accurate inference. I think of this in terms of inference spaces. When I advise Data Scientists to understand Topology and Differential Geometry, this is why.
+
+The tooling and automation required to execute is a large scale project in and of itself. There is a massive tools gap here and custom built is the only way to go. Models need to be built to recommend data to be gathered and hypothesis to test. The distance between intervention and outcome makes it difficult for us to design experiments. Sifting through the data necessary to guess at those relationships is not something people can manually do in business timelines.
