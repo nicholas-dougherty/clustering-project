@@ -237,8 +237,7 @@ def prep_zillow(df):
     print('Yearbuilt converted to age. \n')
                           
     df['county'] = df.fips.apply(lambda fips: '0' + str(int(fips)))
-    df['county'].replace({'06037': 'los_angeles', '06059': 'orange', '06111': 'ventura'}, inplace=True) 
-    df.drop(['fips'], axis=1, inplace=True)
+    df['county'].replace({'06037': 'los_angeles', '06059': 'orange', '06111': 'ventura'}, inplace=True)
     
     # Feature Engineering
      # create taxrate variable
@@ -251,6 +250,15 @@ def prep_zillow(df):
     # Removing problematic outlier groups. K is at 1.5 since K-Means clustering is very sensitive to outliers 
     df = remove_outliers(df, 1.5, ['age', 'structure_cost_per_sqft', 'taxrate',
                                 'land_cost_per_sqft'])
+    
+    # create quarters based on transaction date
+    # first convert from string to datetime format
+    df['transactiondate'] = pd.to_datetime(df['transactiondate'], infer_datetime_format=True, errors='coerce')
+    # then use pandas feature dt.
+    df['fiscal_quarter'] = df['transactiondate'].dt.quarter
+    # drop transaction date, since it can't be represented in a histogram 
+    # actual dates can be retrieved from parcelid for those interested
+    df = df.drop(columns='transactiondate')
     
     # there are less than 1% of values in both these fields, and neither are likely to hold value. Plus, a 
     # one bedroom for a family is unthinkable. I was tempted to remove five, since there are so many 5 
