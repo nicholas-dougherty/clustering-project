@@ -488,8 +488,6 @@ def prep_zillow_splitter(df):
     df = df.drop(columns=['ventura', 'county', 'fips'])
     # may drop county later, might just opt to not use it. 
 
-    # drop sets that are fed from one another. Ones that were used to create features. 
-   # df = df.drop(columns=['lotsizesquarefeet', 'regionidcity', 'structuretaxvaluedollarcnt', 'landtaxvaluedollarcnt'])
     
     # train/validate/test split
     train_validate, test = train_test_split(df, test_size=.2, random_state=123)

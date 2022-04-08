@@ -154,3 +154,93 @@ def costpersqft(train):
     
     print('---------------------------------------------------------------------\
     ---------------------------------------------------------------------')
+    
+def plot_continuous_duo(df, x, y):
+    '''
+        Create line and scatter plots along with a regression line for two 
+        continuous variables. User provides a Pandas DataFrame and strings
+        capturing the column names to be used for the independent variable, x,
+        and dependent variable, y.  
+    '''
+
+    fig, ax = plt.subplots(nrows = 1, ncols = 2, figsize = (12, 6))
+    mean = df[y].mean()
+
+    sns.lineplot(data = df, x = x, y = y, ax = ax[0], color='red')
+    ax[0].axhline(mean, ls='--', color='grey')
+
+    sns.scatterplot(data = df, x = x, y = y, ax = ax[1], alpha = 0.3, color = 'purple')
+    ax[1].axhline(mean, ls='--', color='grey')
+
+    plt.show()
+    
+def elbowing_coords(train):
+    X = train[["latitude","longitude"]]
+    max_k = 10
+    ## iterations
+    distortions = [] 
+    for i in range(1, max_k+1):
+        if len(X) >= i:
+           model = cluster.KMeans(n_clusters=i, init='k-means++', max_iter=300, n_init=10, random_state=0)
+           model.fit(X)
+           distortions.append(model.inertia_)
+    ## best k: the lowest derivative
+    k = [i*100 for i in np.diff(distortions,2)].index(min([i*100 for i 
+         in np.diff(distortions,2)]))
+    ## plot
+    fig, ax = plt.subplots()
+    ax.plot(range(1, len(distortions)+1), distortions)
+    ax.axvline(k, ls='--', color="red", label="k = "+str(k))
+    ax.set(title='The Elbow Method', xlabel='Number of clusters', 
+           ylabel="Distortion")
+    ax.legend()
+    ax.grid(True)
+    plt.show()
+    
+def plot_coord_clusters(train):
+    k = 7
+    model = cluster.KMeans(n_clusters=k, init='k-means++')
+    X = train[["latitude","longitude"]]
+    ## clustering
+    dtf_X = X.copy()
+    dtf_X["cluster"] = model.fit_predict(X)
+    ## find real centroids
+    closest, distances = scipy.cluster.vq.vq(model.cluster_centers_, 
+                         dtf_X.drop("cluster", axis=1).values)
+    dtf_X["centroids"] = 0
+    for i in closest:
+        dtf_X["centroids"].iloc[i] = 1
+    ## add clustering info to the original dataset
+    train[["cluster","centroids"]] = dtf_X[["cluster","centroids"]]
+    ## plot
+    fig, ax = plt.subplots()
+    sns.scatterplot(x="latitude", y="longitude", data=train, 
+                    palette=sns.color_palette("bright",k),
+                    hue='cluster', size="centroids", size_order=[1,0],
+                    legend="brief", ax=ax).set_title('Clustering(k='+str(k)+')')
+    th_centroids = model.cluster_centers_
+    ax.scatter(th_centroids[:,0], th_centroids[:,1], s=50, c='black', 
+               marker="x")
+    
+def elbowing_bedsandbaths(X_train_scaled):
+    X = train[["bedroomcnt","bathroomcnt"]]
+    max_k = 10
+    ## iterations
+    distortions = [] 
+    for i in range(1, max_k+1):
+        if len(X) >= i:
+            model = cluster.KMeans(n_clusters=i, init='k-means++', max_iter=300, n_init=10, random_state=0)
+            model.fit(X)
+            distortions.append(model.inertia_)
+    ## best k: the lowest derivative
+    k = [i*100 for i in np.diff(distortions,2)].index(min([i*100 for i 
+            in np.diff(distortions,2)]))
+    ## plot
+    fig, ax = plt.subplots()
+    ax.plot(range(1, len(distortions)+1), distortions)
+    ax.axvline(k, ls='--', color="red", label="k = "+str(k))
+    ax.set(title='The Elbow Method', xlabel='Number of clusters', 
+            ylabel="Distortion")
+    ax.legend()
+    ax.grid(True)
+    plt.show()
