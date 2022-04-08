@@ -107,3 +107,6 @@ Because the model is not familiar with our context. So, it defines one as age, w
 Therefore, it will place a much bigger weight on the income variable.
 
 It is obvious that we must protect ourselves from such an outcome. What’s more, in general, we want to treat all the features equally. And we can achieve that by transforming the features in a way that makes their values fall within the same numerical range. Thus, the differences between their values will be comparable. This process is commonly referred to as standardization.
+
+### Reasons for using PCA
+https://365datascience.com/tutorials/python-tutorials/pca-k-means/

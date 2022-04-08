@@ -11,7 +11,7 @@ def get_exploration_data():
     return train
 
 
-def wrangle_zillow(target):
+def wrangle_zillow_anew(target):
     '''
     '''
     
@@ -37,8 +37,15 @@ def wrangle_zillow(target):
     
     return train, validate, test, X_train, y_train, X_validate, y_validate, X_test, y_test
     
-    
 
+
+def wrangle_zillow():
+    df = prep_zillow(acquire_zillow_data())
+    
+    train_validate, test = train_test_split(df, test_size=.2, random_state=123)
+    train, validate = train_test_split(train_validate, test_size=.3, random_state=123)
+    
+    return train, validate, test
 
 
 def acquire_zillow_data(use_cache=True):
@@ -461,6 +468,8 @@ def prep_zillow_splitter(df):
     df = df.drop(columns=['ventura', 'county', 'fips'])
     # may drop county later, might just opt to not use it. 
     
+    # drop sets that are fed from one another. Ones that were used to create features. 
+    df = df.drop(columns=['lotsizesquarefeet', 'regionidcity', 'structuretaxvaluedollarcnt', 'landtaxvaluedollarcnt'])
     
     # train/validate/test split
     train_validate, test = train_test_split(df, test_size=.2, random_state=123)
@@ -469,10 +478,6 @@ def prep_zillow_splitter(df):
     
     
     return train, validate, test
-
-
-
-
     
     
 def get_exploration_data():
