@@ -11,15 +11,32 @@ def get_exploration_data():
     return train
 
 
-def wrangle_zillow():
-    # currently cannot stratify by logerror
-    df = prep_zillow(acquire_zillow_data())
+def wrangle_zillow(target):
+    '''
+    '''
     
-    # train/validate/test split
-    train_validate, test = train_test_split(df, test_size=.2, random_state=123)
-    train, validate = train_test_split(train_validate, test_size=.3, random_state=123)
+    # Cannot stratify by logerror
+    train, validate, test = prep_zillow_splitter(acquire_zillow_data())
     
-    return train, validate, test
+    # split train into X (dataframe, drop target) & y (series, keep target only)
+    X_train = train.drop(columns=[target])
+    y_train = train[target]
+    
+    # split validate into X (dataframe, drop target) & y (series, keep target only)
+    X_validate = validate.drop(columns=[target])
+    y_validate = validate[target]
+    
+    # split test into X (dataframe, drop target) & y (series, keep target only)
+    X_test = test.drop(columns=[target])
+    y_test = test[target]
+    
+    # Change series into data frame for y 
+    y_train = pd.DataFrame(y_train)
+    y_validate = pd.DataFrame(y_validate)
+    y_test = pd.DataFrame(y_test)
+    
+    return train, validate, test, X_train, y_train, X_validate, y_validate, X_test, y_test
+    
     
 
 
@@ -168,7 +185,7 @@ def moveDecimalPoint(series, decimal_places):
     return series
 
 
-def prep_zillow(df):
+def prep_zillow_og(df):
     
     df = data_prep(df)
     
@@ -303,30 +320,202 @@ def prep_zillow(df):
     
     return df
 
+
+def prep_zillow_splitter(df):
+    
+    df = data_prep(df)
+    
+    df = df[(df.propertylandusedesc == 'Single Family Residential') |
+      (df.propertylandusedesc == 'Mobile Home') |
+      (df.propertylandusedesc == 'Manufactured, Modular, Prefabricated Homes') |
+      (df.propertylandusedesc == 'Cluster Home')]
+    
+    # Remove properties that couldn't even plausibly be a studio. 
+    df= df[(df.bedroomcnt > 0) & (df.bathroomcnt > 0)]
+    
+    # Remove properties where there is not a single bathroom.
+    df = df[df.bathroomcnt > 0]
+    
+ # keep only properties with square footage greater than 70 (legal size of a bedroom)
+    df = df[df.calculatedfinishedsquarefeet > 70]
+    
+    # Minimum lot size of single family units.
+    df = df[df.lotsizesquarefeet >= 5000].copy()
+
+    # Clear indicators of single unit family. Other codes non-existent or indicate commercial sites. 
+   # 0100 - Single Residence
+   # 0101 Single residence with pool
+   # 0104 - Single resident with therapy pool 
+    df = df[(df.propertycountylandusecode == '0100') |
+            (df.propertycountylandusecode == '0101') |
+            (df.propertycountylandusecode == '0104') |
+            (df.propertycountylandusecode == '122') | 
+            (df.propertycountylandusecode == '1111') |
+            (df.propertycountylandusecode == '1110') |
+            (df.propertycountylandusecode == '1')
+           ]
+    
+    
+    # Remove 13 rows where unit count is 2. The NaN's can be safely assumed as 1 and were just mislabeled in other counties.  
+    df = df[df['unitcnt'] != 2]
+    df['unitcnt'].fillna(1)
+    
+    
+    # Property where finished area is 152 but bed count is 5. 
+    df = df.drop(labels=75325, axis=0)
+    
+      
+            
+    # Redudant columns or uninterpretable columns
+    # Unit count was dropped because now its known that theyre all 1. 
+    # Finished square feet is equal to calculated sq feet. 
+    # full bathcnt and calculatedbathnbr are equal to bathroomcnt
+    # property zoning desc is unreadable. 
+    # assessment year is unnecessary, all values are 2016. 
+    # property land use desc is always single family residence 
+    # same with property landuse type id. 
+    # room count must be for a different category, as it is always 0.
+    # regionidcounty reveals the same information as FIPS. 
+    # heatingorsystemtypeid is redundant. Encoded descr. 
+    # Id does nothing, and parcelid is easier to represent. 
+
+    
+    df =df.drop(columns= ['finishedsquarefeet12', 'fullbathcnt', 'calculatedbathnbr',
+                      'propertyzoningdesc', 'unitcnt', 'propertylandusedesc',
+                      'assessmentyear', 'roomcnt', 'regionidcounty', 'propertylandusetypeid',
+                      'heatingorsystemtypeid', 'id', 'heatingorsystemdesc', 'buildingqualitytypeid',
+                         'rawcensustractandblock'],
+            axis=1)
+    
+    
+    # The last nulls can be dropped altogether. 
+    df = df.dropna()
+    
+    # the city code is supposed to have five digits. Converted to integer to do an accurate length count as a subsequent string. 
+    df.regionidcity = df.regionidcity.astype(int)
+    df = df[df.regionidcity.astype(str).apply(len) == 5]
+    
+    # the same applies to the zip code. 
+    
+    df.regionidzip = df.regionidzip.astype(int)
+    df = df[df.regionidzip.astype(str).apply(len) == 5]
+    
+
+    df['yearbuilt'] = df['yearbuilt'].astype(int)
+    df.yearbuilt = df.yearbuilt.astype(object) 
+    df['age'] = 2017-df['yearbuilt']
+    df = df.drop(columns='yearbuilt')
+    df['age'] = df['age'].astype('int')
+    print('Yearbuilt converted to age. \n')
+                          
+    df['county'] = df.fips.apply(lambda fips: '0' + str(int(fips)))
+    df['county'].replace({'06037': 'los_angeles', '06059': 'orange', '06111': 'ventura'}, inplace=True)
+    
+    # Feature Engineering
+     # create taxrate variable
+    df['taxrate'] = round(df.taxamount/df.taxvaluedollarcnt*100, 2)
+    # dollar per square foot- structure
+    df['structure_cost_per_sqft'] = df.structuretaxvaluedollarcnt/df.calculatedfinishedsquarefeet
+    # dollar per square foot- land
+    df['land_cost_per_sqft'] = df.landtaxvaluedollarcnt/df.lotsizesquarefeet
+    
+    df = remove_outliers(df, 3, ['lotsizesquarefeet', 'structuretaxvaluedollarcnt', 'taxvaluedollarcnt',
+                                'landtaxvaluedollarcnt', 'taxamount', 'calculatedfinishedsquarefeet', 'structure_cost_per_sqft',
+                                'taxrate', 'land_cost_per_sqft', 'bedroomcnt', 'bathroomcnt'])
+    
+    # create quarters based on transaction date
+    # first convert from string to datetime format
+    df['transactiondate'] = pd.to_datetime(df['transactiondate'], infer_datetime_format=True, errors='coerce')
+    # then use pandas feature dt.
+    df['fiscal_quarter'] = df['transactiondate'].dt.quarter
+    # drop transaction date, since it can't be represented in a histogram 
+    # actual dates can be retrieved from parcelid for those interested
+    df = df.drop(columns='transactiondate')
+    
+    # lastly, even after removing outliers from those columns, a few tax rates under 
+    # 1% are present. This is unacceptable, as the Maximum Levy (in other words the 
+    # bare minimum, too) is 1%. Additional fees can be added, but there's no getting 
+    # under 1%. thus, rows falling beneath this must go. 
+    df = df[df.taxrate >= 1.0]
+    
+    # move decimal points so lat
+    # and long are correct. 
+    
+    lats = df['latitude']
+    longs = df['longitude']
+    
+    round(moveDecimalPoint(lats, -6), 6)
+    round(moveDecimalPoint(longs, -6), 6)
+    
+    
+    #finally set the index
+    df = df.set_index('parcelid')
+    
+        # A row where the censustractandblock was out of range. Wasn't close to the raw, unlike the others, and started with 483 instead of 60, 61. Too large. 
+    df = df.drop(labels=12414696, axis=0)
+    
+    dummy_df = pd.get_dummies(df['county'],
+                                 drop_first=False)
+       # add the dummies as new columns to the original dataframe
+    df = pd.concat([df, dummy_df], axis=1)
+    df = df.drop(columns=['ventura', 'county', 'fips'])
+    # may drop county later, might just opt to not use it. 
+    
+    
+    # train/validate/test split
+    train_validate, test = train_test_split(df, test_size=.2, random_state=123)
+    train, validate = train_test_split(train_validate, test_size=.3, random_state=123)
+    
+    
+    
+    return train, validate, test
+
+
+
+
+    
+    
 def get_exploration_data():
     train, validate, test = wrangle_zillow()
     return train
 
 
 
-def scale_data(train, validate, test):
+def scale_data(X_train, X_validate, X_test, return_scaler=False):
     '''
-    This function takes in the features for train, validate and test splits. It creates a MinMax Scaler and fits that to the train set.
-    It then transforms the validate and test splits and returns the scaled features for the train, validate and test splits.
+    Scales the 3 data splits.
+    
+    takes in the train, validate, and test data splits and returns their scaled counterparts.
+    
+    If return_scaler is true, the scaler object will be returned as well.
+    
+    Target is not scaled.
+    
+    columns_to_scale was originally used to check whether los_angeles and orange would cause trouble
     '''
-    columns_to_scale = ['', '', '']
-    train_scaled = train.copy()
-    validate_scaled = validate.copy()
-    test_scaled = test.copy()
-
-    scaler = MinMaxScaler()
-    scaler.fit(train[columns_to_scale])
-
-    train_scaled[columns_to_scale] = scaler.transform(train[columns_to_scale])
-    validate_scaled[columns_to_scale] = scaler.transform(validate[columns_to_scale])
-    test_scaled[columns_to_scale] = scaler.transform(test[columns_to_scale])
-
-    return train_scaled, validate_scaled, test_scaled
+    columns_to_scale = ['bathroomcnt', 'bedroomcnt', 'calculatedfinishedsquarefeet',
+       'latitude', 'longitude', 'lotsizesquarefeet',
+       'propertycountylandusecode', 'regionidcity', 'regionidzip',
+       'structuretaxvaluedollarcnt', 'taxvaluedollarcnt',
+       'landtaxvaluedollarcnt', 'taxamount', 'censustractandblock', 'age',
+       'taxrate', 'structure_cost_per_sqft', 'land_cost_per_sqft',
+       'fiscal_quarter', 'los_angeles', 'orange']
+    
+    X_train_scaled = X_train.copy()
+    X_validate_scaled = X_validate.copy()
+    X_test_scaled = X_test.copy()
+    
+    scaler = StandardScaler()
+    scaler.fit(X_train_scaled[columns_to_scale])
+    
+    X_train_scaled[columns_to_scale] = scaler.transform(X_train[columns_to_scale])
+    X_validate_scaled[columns_to_scale] = scaler.transform(X_validate[columns_to_scale])
+    X_test_scaled[columns_to_scale] = scaler.transform(X_test[columns_to_scale])
+    
+    if return_scaler:
+        return scaler, X_train_scaled, X_validate_scaled, X_test_scaled
+    else:
+        return X_train_scaled, X_validate_scaled, X_test_scaled
 
 #def get_modeling_data(scale_data=False):
 #    df = get_mallcustomer_data()

@@ -69,3 +69,40 @@
 ##ax.text(0.75, 0.9, textstr, transform=ax.transAxes, fontsize=10,
 ##        verticalalignment='top', bbox=props)
 #plt.show()
+
+#######
+
+# from shapely.geometry import Point, Polygon
+# import geopandas as gpd
+# 
+# geometry = [Point(xy) for xy in zip(train['longitude'], train['latitude'])]
+# crs = {'init': 'epsg:4326'}
+# geo_df = gpd.GeoDataFrame(train, crs = crs, geometry = geometry)
+# m = folium_map
+# 
+# folium.Choropleth(geo_data= geo_df,
+#     name='choropleth',
+#     data=geo_df,
+#     columns=['taxrate', 'age'],
+#     key_on='feature.id',
+#     fill_color='YlGn',
+#     fill_opacity=0.7,
+#     line_opacity=0.2,
+#     legend_name='Tax Rate and Age %'
+# ).add_to(m)
+
+# was hoping to check bivariate relationships this way, but can't get it to work. 
+# train = train.drop(columns='geometry')
+
+
+miss_pct <- map_dbl(dtrain, function(x) { round((sum(is.na(x)) / length(x)) * 100, 1) })
+
+miss_pct <- miss_pct[miss_pct > 0]
+
+data.frame(miss=miss_pct, var=names(miss_pct), row.names=NULL) %>%
+    ggplot(aes(x=reorder(var, -miss), y=miss)) + 
+    geom_bar(stat='identity', fill='red') +
+    labs(x='', y='% missing', title='Percent missing data by feature') +
+    theme(axis.text.x=element_text(angle=90, hjust=1))
+    
+    #use in final report to show missing values
