@@ -90,7 +90,7 @@ def remove_columns(df, cols_to_remove):
                  
 def handle_missing_values(df, prop_required_column=0.5 , prop_required_row=0.5):
     '''
-    This function takes in a pandas dataframe, default proportion of required columns (set to 50%) and proprtion of required rows (set to 75%).
+    This function takes in a pandas dataframe, default proportion of required columns (set to 50%) and proprtion of required rows (set to 50%).
     It drops any rows or columns that contain null values more than the threshold specified from the original dataframe and returns that dataframe.
     
     Prior to returning that data, it will print statistics and list counts/names of removed columns/row counts 

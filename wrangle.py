@@ -7,7 +7,7 @@ from sklearn.model_selection import train_test_split
 from datetime import date
 
 def get_exploration_data():
-    train, validate, test = wrangle_zillow()
+    train, validate, test = prep_zillow_splitter(acquire_zillow_data())
     return train
 
 
@@ -40,7 +40,7 @@ def wrangle_zillow_anew(target):
 
 
 def wrangle_zillow():
-    df = prep_zillow(acquire_zillow_data())
+    df = prep_zillow_og(acquire_zillow_data())
     
     train_validate, test = train_test_split(df, test_size=.2, random_state=123)
     train, validate = train_test_split(train_validate, test_size=.3, random_state=123)
@@ -133,9 +133,9 @@ def handle_missing_values(df, prop_required_column=0.5 , prop_required_row=0.5):
     remaining_rows = df.shape[0]
     dropped_col_count = len(original_cols) - len(remaining_cols)
     dropped_cols = list((Counter(original_cols) - Counter(remaining_cols)).elements())
-    print(f'The following {dropped_col_count} columns were dropped because they were missing more than {prop_required_column * 100}% of data: \n{dropped_cols}\n')
+    #print(f'The following {dropped_col_count} columns were dropped because they were missing more than {prop_required_column * 100}% of data: \n{dropped_cols}\n')
     dropped_rows = original_rows - remaining_rows
-    print(f'{dropped_rows} rows were dropped because they were missing more than {prop_required_row * 100}% of data')
+    #print(f'{dropped_rows} rows were dropped because they were missing more than {prop_required_row * 100}% of data')
     return df
 
 # combined in one function
@@ -194,22 +194,36 @@ def moveDecimalPoint(series, decimal_places):
 
 def prep_zillow_og(df):
     
+    
+    print('Beginning preparation...\n')
+    print('Detecting Nulls; set to delete columns and then rows are comprised of 50% nulls')      
     df = data_prep(df)
     
+    print('''
+    The following 34 columns were dropped because they were missing more than 50.0% of data: 
+['airconditioningtypeid', 'architecturalstyletypeid', 'basementsqft', 'buildingclasstypeid', 'decktypeid', 'finishedfloor1squarefeet', 'finishedsquarefeet13', 'finishedsquarefeet15', 'finishedsquarefeet50', 'finishedsquarefeet6', 'fireplacecnt', 'garagecarcnt', 'garagetotalsqft', 'hashottuborspa', 'poolcnt', 'poolsizesum', 'pooltypeid10', 'pooltypeid2', 'pooltypeid7', 'regionidneighborhood', 'storytypeid', 'threequarterbathnbr', 'typeconstructiontypeid', 'yardbuildingsqft17', 'yardbuildingsqft26', 'numberofstories', 'fireplaceflag', 'taxdelinquencyflag', 'taxdelinquencyyear', 'airconditioningdesc', 'architecturalstyledesc', 'buildingclassdesc', 'storydesc', 'typeconstructiondesc']
+
+0 rows were dropped because they were missing more than 50.0% of data''')
+    
+    print('Selecting propertylanduse by the potential that they classify as single family residential, although indirectly\n')
     df = df[(df.propertylandusedesc == 'Single Family Residential') |
       (df.propertylandusedesc == 'Mobile Home') |
       (df.propertylandusedesc == 'Manufactured, Modular, Prefabricated Homes') |
       (df.propertylandusedesc == 'Cluster Home')]
+    print('Plausible candidates: Mobile Home; Manufactured, Modular, Prefabricated Homes; Cluster Home; Single Family Residential\n')
     
+    print('Removing properties that have zero bathrooms and zero bedrooms\n')
     # Remove properties that couldn't even plausibly be a studio. 
     df= df[(df.bedroomcnt > 0) & (df.bathroomcnt > 0)]
-    
     # Remove properties where there is not a single bathroom.
     df = df[df.bathroomcnt > 0]
     
+    print('Preserving properties with a finished living area greater than 70 square feet\n')
  # keep only properties with square footage greater than 70 (legal size of a bedroom)
     df = df[df.calculatedfinishedsquarefeet > 70]
+    print('California housing standards classify a bedroom as being greater than 70 sqft, any properties beneath this are undeniably not homes\n')
     
+    print('The minimum lot size of single family units is 5000 square feet. DataFrame excludes fields that fail to meet this criteria.\n')
     # Minimum lot size of single family units.
     df = df[df.lotsizesquarefeet >= 5000].copy()
 
@@ -217,6 +231,7 @@ def prep_zillow_og(df):
    # 0100 - Single Residence
    # 0101 Single residence with pool
    # 0104 - Single resident with therapy pool 
+    print('Preserving certain property county landuse codes based on research\n')
     df = df[(df.propertycountylandusecode == '0100') |
             (df.propertycountylandusecode == '0101') |
             (df.propertycountylandusecode == '0104') |
@@ -226,7 +241,7 @@ def prep_zillow_og(df):
             (df.propertycountylandusecode == '1')
            ]
     
-    
+    print('Removed 13 rows where unit count is 2. Duplexes are not permitted. After reasoning through remainders, Orange county had many false detailed Nulls that were actually HIGHLY LIKELY single family residences. Unit Count NA filled with 1.\n')
     # Remove 13 rows where unit count is 2. The NaN's can be safely assumed as 1 and were just mislabeled in other counties.  
     df = df[df['unitcnt'] != 2]
     df['unitcnt'].fillna(1)
@@ -249,7 +264,7 @@ def prep_zillow_og(df):
     # regionidcounty reveals the same information as FIPS. 
     # heatingorsystemtypeid is redundant. Encoded descr. 
     # Id does nothing, and parcelid is easier to represent. 
-
+    print('Dropping columns that are redundant or provide no discernible value to this set. Details included in wrangle.py \n')
     
     df =df.drop(columns= ['finishedsquarefeet12', 'fullbathcnt', 'calculatedbathnbr',
                       'propertyzoningdesc', 'unitcnt', 'propertylandusedesc',
@@ -258,10 +273,11 @@ def prep_zillow_og(df):
                          'rawcensustractandblock'],
             axis=1)
     
-    
+    print('Remaining Null Count miniscule. Less than 0.000% of DF. Dropping values. \n')
     # The last nulls can be dropped altogether. 
     df = df.dropna()
     
+    print('City and Zip Code must have five place-holders. Many do not, are were dropped \n')
     # the city code is supposed to have five digits. Converted to integer to do an accurate length count as a subsequent string. 
     df.regionidcity = df.regionidcity.astype(int)
     df = df[df.regionidcity.astype(str).apply(len) == 5]
@@ -271,17 +287,19 @@ def prep_zillow_og(df):
     df.regionidzip = df.regionidzip.astype(int)
     df = df[df.regionidzip.astype(str).apply(len) == 5]
     
-
+    print('Calculating and creating an age column')
     df['yearbuilt'] = df['yearbuilt'].astype(int)
     df.yearbuilt = df.yearbuilt.astype(object) 
     df['age'] = 2017-df['yearbuilt']
     df = df.drop(columns='yearbuilt')
     df['age'] = df['age'].astype('int')
     print('Yearbuilt converted to age. \n')
-                          
+    
+    print('County column created using Federal Information Processing Standards')
     df['county'] = df.fips.apply(lambda fips: '0' + str(int(fips)))
     df['county'].replace({'06037': 'los_angeles', '06059': 'orange', '06111': 'ventura'}, inplace=True)
     
+    print('Creating columns for tax rate and cost per square foot for structure and land \n')
     # Feature Engineering
      # create taxrate variable
     df['taxrate'] = round(df.taxamount/df.taxvaluedollarcnt*100, 2)
@@ -290,10 +308,11 @@ def prep_zillow_og(df):
     # dollar per square foot- land
     df['land_cost_per_sqft'] = df.landtaxvaluedollarcnt/df.lotsizesquarefeet
     
+    print('Using k=3, removing outliers from continuous variables')
     df = remove_outliers(df, 3, ['lotsizesquarefeet', 'structuretaxvaluedollarcnt', 'taxvaluedollarcnt',
                                 'landtaxvaluedollarcnt', 'taxamount', 'calculatedfinishedsquarefeet', 'structure_cost_per_sqft',
                                 'taxrate', 'land_cost_per_sqft', 'bedroomcnt', 'bathroomcnt'])
-    
+    print('Creating fiscal quarters according to transaction date \n')
     # create quarters based on transaction date
     # first convert from string to datetime format
     df['transactiondate'] = pd.to_datetime(df['transactiondate'], infer_datetime_format=True, errors='coerce')
@@ -302,7 +321,7 @@ def prep_zillow_og(df):
     # drop transaction date, since it can't be represented in a histogram 
     # actual dates can be retrieved from parcelid for those interested
     df = df.drop(columns='transactiondate')
-    
+    print('As per Californian tax lexy standard, taxrate listed as less than 1% removed from dataframe. Error either on input or tax record itself.')
     # lastly, even after removing outliers from those columns, a few tax rates under 
     # 1% are present. This is unacceptable, as the Maximum Levy (in other words the 
     # bare minimum, too) is 1%. Additional fees can be added, but there's no getting 
@@ -311,20 +330,21 @@ def prep_zillow_og(df):
     
     # move decimal points so lat
     # and long are correct. 
-    
+    print('Moving decimal points 6 to the left for latitude and longitude, as is necessary to capture the appropriate coordinates for this area of interest. \n')
     lats = df['latitude']
     longs = df['longitude']
     
     round(moveDecimalPoint(lats, -6), 6)
     round(moveDecimalPoint(longs, -6), 6)
     
-    
+    print('Setting parcelid as the index. \n')
     #finally set the index
     df = df.set_index('parcelid')
     
         # A row where the censustractandblock was out of range. Wasn't close to the raw, unlike the others, and started with 483 instead of 60, 61. Too large. 
     df = df.drop(labels=12414696, axis=0)
     
+    print('\n\n\nPreparation Complete. Begin Exploratory Data Analysis.')
     return df
 
 
@@ -413,7 +433,7 @@ def prep_zillow_splitter(df):
     df['age'] = 2017-df['yearbuilt']
     df = df.drop(columns='yearbuilt')
     df['age'] = df['age'].astype('int')
-    print('Yearbuilt converted to age. \n')
+
                           
     df['county'] = df.fips.apply(lambda fips: '0' + str(int(fips)))
     df['county'].replace({'06037': 'los_angeles', '06059': 'orange', '06111': 'ventura'}, inplace=True)
@@ -457,7 +477,7 @@ def prep_zillow_splitter(df):
     
     #finally set the index
     df = df.set_index('parcelid')
-    
+
         # A row where the censustractandblock was out of range. Wasn't close to the raw, unlike the others, and started with 483 instead of 60, 61. Too large. 
     df = df.drop(labels=12414696, axis=0)
     
@@ -467,9 +487,9 @@ def prep_zillow_splitter(df):
     df = pd.concat([df, dummy_df], axis=1)
     df = df.drop(columns=['ventura', 'county', 'fips'])
     # may drop county later, might just opt to not use it. 
-    
+
     # drop sets that are fed from one another. Ones that were used to create features. 
-    df = df.drop(columns=['lotsizesquarefeet', 'regionidcity', 'structuretaxvaluedollarcnt', 'landtaxvaluedollarcnt'])
+   # df = df.drop(columns=['lotsizesquarefeet', 'regionidcity', 'structuretaxvaluedollarcnt', 'landtaxvaluedollarcnt'])
     
     # train/validate/test split
     train_validate, test = train_test_split(df, test_size=.2, random_state=123)
@@ -478,11 +498,7 @@ def prep_zillow_splitter(df):
     
     
     return train, validate, test
-    
-    
-def get_exploration_data():
-    train, validate, test = wrangle_zillow()
-    return train
+
 
 
 
