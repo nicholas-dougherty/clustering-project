@@ -61,6 +61,11 @@ def plot_continuous_duo(df, x, y):
 
     
 def california(train):
+    '''
+    This creates an interactive map using folium, with the center of the greater
+    LA area set. Also creates clusters based on train's latitude and longitude values,
+    zipped across columns. Provides interactivity through the addition of 'child.'
+    '''
     # create a map and set the center as the Greater Los Angeles Area
     folium_map = folium.Map(location=[34.0522, -118.2437])
     
@@ -99,6 +104,9 @@ def california(train):
     return folium_map
 
 def landquest(train):
+    '''
+    A printout visualization of the landtax and lotsize elements of the train df.
+    '''
     
     print('First off, Mr. Warning Message/Error from LoZ 2, YOU\'RE NOT MY REAL DAD')
     
@@ -129,6 +137,10 @@ def landquest(train):
     ---------------------------------------------------------------------------')
     
 def costpersqft(train):
+    '''
+    Another visualization, like land, but for the sake of seeing the differences between
+    structure tax value and land tax value. Also includes visualization by fiscal quarter.
+    '''
     fig, axes = plt.subplots(1, 3, figsize=(16,8))
     fig.suptitle('Similar Distributions Between Calculatedfinishedsqfeet and Structuretaxvalue')
     
@@ -175,6 +187,10 @@ def plot_continuous_duo(df, x, y):
     plt.show()
     
 def elbowing_coords(train):
+    '''
+    Creates an elbow coordinate plain to indicate the most useful k for selection
+    Can be applied to any number of columns, in this case, only longitude and latitude were examined
+    '''
     X = train[["latitude","longitude"]]
     max_k = 10
     ## iterations
@@ -198,6 +214,10 @@ def elbowing_coords(train):
     plt.show()
     
 def plot_coord_clusters(train):
+    '''
+    Takes the results from the elbow method and applies them so as to create the clusters 
+    suggested by that method.
+    '''
     k = 7
     model = cluster.KMeans(n_clusters=k, init='k-means++')
     X = train[["latitude","longitude"]]
@@ -223,6 +243,9 @@ def plot_coord_clusters(train):
                marker="x")
     
 def elbowing_bedsandbaths(X_train_scaled):
+    '''
+    Creates the elbow visualization for beds and baths
+    '''
     X = train[["bedroomcnt","bathroomcnt"]]
     max_k = 10
     ## iterations

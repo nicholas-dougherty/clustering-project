@@ -7,12 +7,22 @@ from sklearn.model_selection import train_test_split
 from datetime import date
 
 def get_exploration_data():
+    '''
+    This acquires, prepares, pre-processes, and splits the data frame
+    but only returns the train data set, since that is the only DF used
+    for exploration.
+    '''
     train, validate, test = prep_zillow_splitter(acquire_zillow_data())
     return train
 
 
 def wrangle_zillow_anew(target):
     '''
+    An improvement upon wrangle which goes through the pipeline up to modeling,
+    acquires, prepares, pre-processes, feature engineers, splits, and then sets
+    the X and y for each--- dependent and independent variable--- by including
+    a string of the target (in this case logerror) each of the useful modeling
+    sets will be returned. 
     '''
     
     # Cannot stratify by logerror
@@ -40,6 +50,12 @@ def wrangle_zillow_anew(target):
 
 
 def wrangle_zillow():
+    '''
+    The initial version of wrangle, which combines the steps of acquisition, preparation,
+    pre-processing, and splitting, returning each of the three. Train can be interpreted freely,
+    but test must be left untouched (with some exceptions) and certainly unseen until running the final
+    model as a matter of performance checking. Validate is used to fine-tune hyperparameters.
+    '''
     df = prep_zillow_og(acquire_zillow_data())
     
     train_validate, test = train_test_split(df, test_size=.2, random_state=123)
@@ -150,7 +166,11 @@ def data_prep(df, cols_to_remove=[], prop_required_column=0.5, prop_required_row
 
 def remove_outliers(df, k, col_list):
     ''' remove outliers from a list of columns in a dataframe 
-        and return that dataframe
+        and return that dataframe. The quantiles are designated
+        within the function, but k is optional. 1.5 would be a thorough
+        removal and 3 is less harsh in its content loss. For this dataframe,
+        visually, the two accomplish the same, so to prevent major loss
+        3 is implemented. 
     '''
     
     for col in col_list:
@@ -193,7 +213,9 @@ def moveDecimalPoint(series, decimal_places):
 
 
 def prep_zillow_og(df):
-    
+    '''
+    The full preparation cycle outlined by print-statements
+    '''
     
     print('Beginning preparation...\n')
     print('Detecting Nulls; set to delete columns and then rows are comprised of 50% nulls')      
@@ -350,6 +372,11 @@ def prep_zillow_og(df):
 
 def prep_zillow_splitter(df):
     
+    '''
+    performs all that is found in the former preparation function
+    but excludes the print statements and also splits the dataframe into
+    train, validate, test. 
+    '''
     df = data_prep(df)
     
     df = df[(df.propertylandusedesc == 'Single Family Residential') |
