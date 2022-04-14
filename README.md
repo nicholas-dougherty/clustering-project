@@ -189,7 +189,8 @@ WHERE prop.latitude IS NOT NULL
 Functions used can be found in wrangle.py in git hub repo
 
 1. clean the data:
-    ```def prep_zillow_og(df):
+```
+    def prep_zillow_og(df):
     '''
     The full preparation cycle outlined by print-statements
     '''
@@ -343,7 +344,8 @@ Functions used can be found in wrangle.py in git hub repo
     df = df.drop(labels=12414696, axis=0)
     
     print('\n\n\nPreparation Complete. Begin Exploratory Data Analysis.')
-    return df```
+    return df
+```
 
 # Project Exploration
 <a name="project_explore"></a>
