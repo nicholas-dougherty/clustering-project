@@ -111,66 +111,67 @@
 Functions used can be found in wrangle.py in git hub repo
 
 1. acquire the zillow data from the codeup sequel server and convert it into a pandas df
-        ```def acquire_zillow_data(use_cache=True):
-        '''
-        This function returns a snippet of zillow's database as a Pandas DataFrame. 
-        When this SQL data is cached and extant in the os directory path, return the data as read into a df. 
-        If csv is unavailable, aquisition proceeds regardless,
-        reading the queried database elements into a dataframe, creating a cached csv file
-        and lastly returning the dataframe for some sweet data science perusal.
-        '''
+```
+    def acquire_zillow_data(use_cache=True):
+    '''
+    This function returns a snippet of zillow's database as a Pandas DataFrame. 
+    When this SQL data is cached and extant in the os directory path, return the data as read into a df. 
+    If csv is unavailable, aquisition proceeds regardless,
+    reading the queried database elements into a dataframe, creating a cached csv file
+    and lastly returning the dataframe for some sweet data science perusal.
+    '''
 
-        # If the cached parameter is True, read the csv file on disk in the same folder as this file 
-        if os.path.exists('zillow.csv') and use_cache:
-            print('Using cached CSV')
-            return pd.read_csv('zillow.csv', dtype={'buildingclassdesc': 'str', 'propertyzoningdesc': 'str'})
+    # If the cached parameter is True, read the csv file on disk in the same folder as this file 
+    if os.path.exists('zillow.csv') and use_cache:
+        print('Using cached CSV')
+        return pd.read_csv('zillow.csv', dtype={'buildingclassdesc': 'str', 'propertyzoningdesc': 'str'})
 
-        # When there's no cached csv, read the following query from Codeup's SQL database.
-        print('CSV not detected.')
-        print('Acquiring data from SQL database instead.')
-        df = pd.read_sql(
-            '''
-    SELECT
-        prop.*,
-        predictions_2017.logerror,
-        predictions_2017.transactiondate,
-        air.airconditioningdesc,
-        arch.architecturalstyledesc,
-        build.buildingclassdesc,
-        heat.heatingorsystemdesc,
-        landuse.propertylandusedesc,
-        story.storydesc,
-        construct.typeconstructiondesc
-    FROM properties_2017 prop
-    JOIN (
-        SELECT parcelid, MAX(transactiondate) AS max_transactiondate
-        FROM predictions_2017
-        GROUP BY parcelid
-    ) pred USING(parcelid)
-    JOIN predictions_2017 ON pred.parcelid = predictions_2017.parcelid
-                        AND pred.max_transactiondate = predictions_2017.transactiondate
-    LEFT JOIN airconditioningtype air USING (airconditioningtypeid)
-    LEFT JOIN architecturalstyletype arch USING (architecturalstyletypeid)
-    LEFT JOIN buildingclasstype build USING (buildingclasstypeid)
-    LEFT JOIN heatingorsystemtype heat USING (heatingorsystemtypeid)
-    LEFT JOIN propertylandusetype landuse USING (propertylandusetypeid)
-    LEFT JOIN storytype story USING (storytypeid)
-    LEFT JOIN typeconstructiontype construct USING (typeconstructiontypeid)
-    WHERE prop.latitude IS NOT NULL
-    AND prop.longitude IS NOT NULL
-    AND transactiondate <= '2017-12-31';             
-            '''
-                        , get_db_url('zillow'))
-        
-        df.propertyzoningdesc.astype(str)
-        
-        
-        print('Acquisition Complete. Dataframe available and is now cached for future use.')
-        # create a csv of the dataframe for the sake of efficiency. 
-        df.to_csv('zillow.csv', index=False)
-        
-        return df
-    ```
+    # When there's no cached csv, read the following query from Codeup's SQL database.
+    print('CSV not detected.')
+    print('Acquiring data from SQL database instead.')
+    df = pd.read_sql(
+        '''
+ SELECT
+    prop.*,
+    predictions_2017.logerror,
+    predictions_2017.transactiondate,
+    air.airconditioningdesc,
+    arch.architecturalstyledesc,
+    build.buildingclassdesc,
+    heat.heatingorsystemdesc,
+    landuse.propertylandusedesc,
+    story.storydesc,
+    construct.typeconstructiondesc
+FROM properties_2017 prop
+JOIN (
+    SELECT parcelid, MAX(transactiondate) AS max_transactiondate
+    FROM predictions_2017
+    GROUP BY parcelid
+) pred USING(parcelid)
+JOIN predictions_2017 ON pred.parcelid = predictions_2017.parcelid
+                      AND pred.max_transactiondate = predictions_2017.transactiondate
+LEFT JOIN airconditioningtype air USING (airconditioningtypeid)
+LEFT JOIN architecturalstyletype arch USING (architecturalstyletypeid)
+LEFT JOIN buildingclasstype build USING (buildingclasstypeid)
+LEFT JOIN heatingorsystemtype heat USING (heatingorsystemtypeid)
+LEFT JOIN propertylandusetype landuse USING (propertylandusetypeid)
+LEFT JOIN storytype story USING (storytypeid)
+LEFT JOIN typeconstructiontype construct USING (typeconstructiontypeid)
+WHERE prop.latitude IS NOT NULL
+  AND prop.longitude IS NOT NULL
+  AND transactiondate <= '2017-12-31';             
+        '''
+                    , get_db_url('zillow'))
+    
+    df.propertyzoningdesc.astype(str)
+    
+    
+    print('Acquisition Complete. Dataframe available and is now cached for future use.')
+    # create a csv of the dataframe for the sake of efficiency. 
+    df.to_csv('zillow.csv', index=False)
+    
+    return df
+```
 
 2. check out the .info
     - Takeways
