@@ -111,7 +111,7 @@
 Functions used can be found in wrangle.py in git hub repo
 
 1. acquire the zillow data from the codeup sequel server and convert it into a pandas df
-    `def acquire_zillow_data(use_cache=True):
+    ```def acquire_zillow_data(use_cache=True):
     '''
     This function returns a snippet of zillow's database as a Pandas DataFrame. 
     When this SQL data is cached and extant in the os directory path, return the data as read into a df. 
@@ -170,7 +170,7 @@ WHERE prop.latitude IS NOT NULL
     df.to_csv('zillow.csv', index=False)
     
     return df
-`
+```
 
 2. check out the .info
     - Takeways
